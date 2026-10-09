@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>闯关问答 · 十关挑战</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: #e8ecf6;
+    background:
+      radial-gradient(900px 500px at 15% -5%, #24386b 0%, transparent 60%),
+      radial-gradient(700px 500px at 100% 100%, #3b1f56 0%, transparent 55%),
+      #0b0e18;
+  }
+
+  .game {
+    width: 100%;
+    max-width: 520px;
+    padding: 22px;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,.10);
+    background: linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.02));
+    box-shadow: 0 26px 70px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  /* ---------- HUD ---------- */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    color: #9aa6c4;
+  }
+  .hud-item b { color: #fff; font-size: 15px; }
+  .hud-item:last-child b { color: #ffd166; }
+
+  .progress {
+    height: 6px;
+    margin: 12px 0 20px;
+    border-radius: 99px;
+    background: rgba(255,255,255,.09);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #5b8cff, #a06bff, #ff6bcb);
+    transition: width .45s cubic-bezier(.34,1.4,.5,1);
+  }
+
+  /* ---------- 题目区 ---------- */
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .5px;
+  }
+  .badge.math { background: rgba(91,140,255,.18); color: #8ab0ff; border: 1px solid rgba(91,140,255,.35); }
+  .badge.en   { background: rgba(255,107,203,.15); color: #ff9fdc; border: 1px solid rgba(255,107,203,.35); }
+
+  .question {
+    margin: 14px 0 18px;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.55;
+    letter-spacing: .3px;
+  }
+
+  .options { display: grid; gap: 10px; }
+
+  .option {
+    width: 100%;
+    padding: 15px 16px;
+    text-align: left;
+    font: inherit;
+    font-size: 16px;
+    color: #e8ecf6;
+    border-radius: 13px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,.13);
+    background: rgba(255,255,255,.055);
+    transition: background .18s, border-color .18s, transform .12s;
+  }
+  .option:hover {
+    background: rgba(255,255,255,.11);
+    border-color: rgba(91,140,255,.6);
+    transform: translateX(3px);
+  }
+  .option:active { transform: scale(.985); }
+
+  .option.correct {
+    background: rgba(47,208,122,.20);
+    border-color: #2fd07a;
+    color: #a8f7cd;
+    animation: pulseGreen .45s ease;
+  }
+  .option.wrong {
+    background: rgba(255,93,108,.20);
+    border-color: #ff5d6c;
+    color: #ffc0c6;
+    animation: shake .4s ease;
+  }
+
+  @keyframes pulseGreen {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.035); }
+    100% { transform: scale(1); }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-7px); }
+    40% { transform: translateX(7px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .options.anim .option { animation: slideIn .32s ease backwards; }
+  .options.anim .option:nth-child(1) { animation-delay: .02s; }
+  .options.anim .option:nth-child(2) { animation-delay: .07s; }
+  .options.anim .option:nth-child(3) { animation-delay: .12s; }
+  .options.anim .option:nth-child(4) { animation-delay: .17s; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .feedback {
+    min-height: 22px;
+    margin-top: 14px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .feedback.ok  { color: #55e39a; }
+  .feedback.bad { color: #ff7c88; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    top: 22px;
+    left: 50%;
+    transform: translate(-50%, -24px);
+    padding: 11px 20px;
+    border-radius: 99px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(90deg, #5b8cff, #a06bff);
+    box-shadow: 0 12px 30px rgba(91,140,255,.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s, transform .3s;
+    z-index: 80;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- 弹窗 ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(5,8,16,.76);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    z-index: 60;
+    opacity: 1;
+    transition: opacity .25s;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .dialog {
+    width: 100%;
+    max-width: 360px;
+    padding: 26px 22px 22px;
+    text-align: center;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: linear-gradient(165deg, #1b2135, #141828);
+    box-shadow: 0 30px 70px rgba(0,0,0,.65);
+    animation: pop .3s cubic-bezier(.34,1.5,.5,1);
+  }
+  @keyframes pop {
+    from { transform: scale(.88); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .dialog-emoji { font-size: 42px; line-height: 1; margin-bottom: 10px; }
+  .dialog h3 { font-size: 20px; margin-bottom: 10px; }
+  .dialog p  { font-size: 14px; line-height: 1.7; color: #9aa6c4; }
+
+  .dialog-buttons {
+    display: grid;
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .dlg-btn {
+    width: 100%;
+    padding: 13px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: #dfe5f5;
+    border-radius: 13px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(255,255,255,.05);
+    transition: background .18s, border-color .18s, transform .1s;
+  }
+  .dlg-btn:hover { background: rgba(255,255,255,.11); }
+  .dlg-btn:active { transform: scale(.98); }
+
+  .dlg-btn.primary {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(90deg, #5b8cff, #a06bff);
+    box-shadow: 0 10px 26px rgba(110,120,255,.38);
+  }
+  .dlg-btn.primary:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+
+<div class="game">
+  <div class="hud">
+    <div class="hud-item">关卡 <b><span id="levelNum">1</span>/10</b></div>
+    <div class="hud-item">连对 <b><span id="streakNum">0</span>/3</b></div>
+    <div class="hud-item">复活卡 <b id="reviveNum">0</b></div>
+  </div>
+
+  <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="badge math" id="badge">数学</div>
+  <h2 class="question" id="questionText"></h2>
+  <div class="options" id="optionsBox"></div>
+  <div class="feedback" id="feedback"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="dialog">
+    <div class="dialog-emoji" id="dlgEmoji"></div>
+    <h3 id="dlgTitle"></h3>
+    <p id="dlgText"></p>
+    <div class="dialog-buttons" id="dlgButtons"></div>
+  </div>
+</div>
+
+<script>
+/* ======================= 题库（10 关） ======================= */
+const QUESTIONS = [
+  { type: '数学', q: '7 × 8 = ?',                          options: ['54', '56', '48', '64'],                answer: '56' },
+  { type: '英语', q: 'Which word means “苹果”？',           options: ['apple', 'banana', 'orange', 'grape'],  answer: 'apple' },
+  { type: '数学', q: '15 + 27 = ?',                        options: ['42', '32', '52', '41'],                answer: '42' },
+  { type: '英语', q: 'She ___ to school every day.',       options: ['go', 'goes', 'going', 'gone'],         answer: 'goes' },
+  { type: '数学', q: '12 × 12 = ?',                        options: ['124', '132', '144', '148'],            answer: '144' },
+  { type: '英语', q: '“child” 的复数形式是？',              options: ['childs', 'childes', 'children', 'child'], answer: 'children' },
+  { type: '数学', q: '解方程：3x + 5 = 20，则 x = ?',       options: ['3', '5', '6', '7'],                    answer: '5' },
+  { type: '英语', q: '“go” 的过去式是？',                   options: ['goed', 'gone', 'went', 'going'],       answer: 'went' },
+  { type: '数学', q: '长方形长 8cm、宽 5cm，面积是？',       options: ['13 cm²', '26 cm²', '40 cm²', '45 cm²'], answer: '40 cm²' },
+  { type: '数学', q: '√81 = ?',                            options: ['7', '8', '9', '11'],                   answer: '9' }
+];
+
+const TOTAL = QUESTIONS.length;
+
+/* ======================= 状态 ======================= */
+const state = {
+  level: 0,        // 当前关卡下标（0 起）
+  streak: 0,       // 当前连对次数
+  revives: 0,      // 持有的复活卡
+  usedRevives: 0,  // 本局已使用次数
+  locked: false    // 防止重复点击
+};
+
+/* ======================= DOM ======================= */
+const $ = id => document.getElementById(id);
+const els = {
+  levelNum:     $('levelNum'),
+  streakNum:    $('streakNum'),
+  reviveNum:    $('reviveNum'),
+  progressFill: $('progressFill'),
+  badge:        $('badge'),
+  questionText: $('questionText'),
+  optionsBox:   $('optionsBox'),
+  feedback:     $('feedback'),
+  toast:        $('toast'),
+  overlay:      $('overlay'),
+  dlgEmoji:     $('dlgEmoji'),
+  dlgTitle:     $('dlgTitle'),
+  dlgText:      $('dlgText'),
+  dlgButtons:   $('dlgButtons')
+};
+
+/* ======================= 工具 ======================= */
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  els.toast.textContent = msg;
+  els.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => els.toast.classList.remove('show'), 1900);
+}
+
+/* ======================= 渲染 ======================= */
+function updateHUD() {
+  els.levelNum.textContent = Math.min(state.level + 1, TOTAL);
+  els.streakNum.textContent = state.streak % 3;   // 距离下一张复活卡的进度
+  els.reviveNum.textContent = state.revives;
+  els.progressFill.style.width = (state.level / TOTAL * 100) + '%';
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[state.level];
+  state.locked = false;
+
+  els.badge.textContent = q.type;
+  els.badge.className = 'badge ' + (q.type === '数学' ? 'math' : 'en');
+  els.questionText.textContent = q.q;
+  els.feedback.textContent = '';
+  els.feedback.className = 'feedback';
+
+  els.optionsBox.innerHTML = '';
+  shuffle(q.options).forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'option';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => chooseOption(btn, opt, q));
+    els.optionsBox.appendChild(btn);
+  });
+
+  // 重播入场动画
+  els.optionsBox.classList.remove('anim');
+  void els.optionsBox.offsetWidth;
+  els.optionsBox.classList.add('anim');
+}
+
+/* ======================= 选择逻辑 ======================= */
+function chooseOption(btn, value, q) {
+  if (state.locked) return;
+  state.locked = true;
+
+  /* ---- 答对 ---- */
+  if (value === q.answer) {
+    btn.classList.add('correct');
+    state.streak++;
+
+    let earnedCard = false;
+    if (state.streak % 3 === 0) {
+      state.revives++;
+      earnedCard = true;
+    }
+    updateHUD();
+
+    els.feedback.textContent = '✅ 回答正确！';
+    els.feedback.className = 'feedback ok';
+    if (earnedCard) showToast('🎉 连对三题！获得 1 张复活卡');
+
+    setTimeout(() => {
+      els.feedback.textContent = '';
+      els.feedback.className = 'feedback';
+      nextLevel();
+    }, earnedCard ? 1150 : 780);
+    return;
+  }
+
+  /* ---- 答错 ---- */
+  btn.classList.add('wrong');
+  Array.from(els.optionsBox.children).forEach(b => {
+    if (b.textContent === q.answer) b.classList.add('correct');
+  });
+
+  state.streak = 0;
+  updateHUD();
+
+  els.feedback.textContent = '❌ 回答错误…';
+  els.feedback.className = 'feedback bad';
+
+  setTimeout(() => {
+    els.feedback.textContent = '';
+    els.feedback.className = 'feedback';
+    onFail();
+  }, 900);
+}
+
+function nextLevel() {
+  state.level++;
+  if (state.level >= TOTAL) {
+    winGame();
+    return;
+  }
+  updateHUD();
+  renderQuestion();
+}
+
+/* ======================= 失败 / 复活 ======================= */
+function onFail() {
+  if (state.revives > 0) {
+    showDialog({
+      emoji: '💔',
+      title: '挑战失败',
+      text: `答错啦！你还有 ${state.revives} 张复活卡，使用后可以跳过本题继续挑战。`,
+      buttons: [
+        { label: '✨ 使用复活卡', primary: true, action: useRevive },
+        { label: '重新开始', action: restartGame }
+      ]
+    });
+  } else {
+    showDialog({
+      emoji: '💀',
+      title: '游戏结束',
+      text: `很遗憾，答错了而且没有复活卡。你闯到了第 ${state.level + 1} 关，再来一次吧！`,
+      buttons: [
+        { label: '重新开始', primary: true, action: restartGame }
+      ]
+    });
+  }
+}
+
+function useRevive() {
+  state.revives--;
+  state.usedRevives++;
+  state.streak = 0;
+  hideDialog();
+  updateHUD();
+  showToast('✨ 复活成功，跳过本题！');
+  setTimeout(nextLevel, 620);
+}
+
+/* ======================= 通关 / 重开 ======================= */
+function winGame() {
+  updateHUD();
+  els.progressFill.style.width = '100%';
+  showDialog({
+    emoji: '🏆',
+    title: '恭喜通关！',
+    text: `你成功答完了全部 ${TOTAL} 关！本局共使用复活卡 ${state.usedRevives} 次。`,
+    buttons: [
+      { label: '再玩一次', primary: true, action: restartGame }
+    ]
+  });
+}
+
+function restartGame() {
+  hideDialog();
+  state.level = 0;
+  state.streak = 0;
+  state.revives = 0;
+  state.usedRevives = 0;
+  state.locked = false;
+  updateHUD();
+  renderQuestion();
+}
+
+/* ======================= 弹窗 ======================= */
+function showDialog({ emoji, title, text, buttons }) {
+  els.dlgEmoji.textContent = emoji || '';
+  els.dlgTitle.textContent = title;
+  els.dlgText.textContent = text;
+  els.dlgButtons.innerHTML = '';
+
+  buttons.forEach(cfg => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dlg-btn' + (cfg.primary ? ' primary' : '');
+    btn.textContent = cfg.label;
+    btn.addEventListener('click', cfg.action);
+    els.dlgButtons.appendChild(btn);
+  });
+
+  els.overlay.classList.remove('hidden');
+}
+
+function hideDialog() {
+  els.overlay.classList.add('hidden');
+}
+
+/* ======================= 启动 ======================= */
+updateHUD();
+renderQuestion();
+</script>
+</body>
+</html>
