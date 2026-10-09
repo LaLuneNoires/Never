@@ -1,2 +1,1 @@
-# Never
-永不言败
+游戏游玩访问https://lalunenoires.github.io/Never/game.html
